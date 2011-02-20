@@ -35,6 +35,14 @@ namespace Midgard.WPFUndoManager
             execute(parameter);
         }
 
+        public void RaiseCanExecuteChanged()
+        {
+            if (CanExecuteChanged != null)
+            {
+                CanExecuteChanged(this, EventArgs.Empty);
+            }
+        }
+
 
         #region ICommand Members
 

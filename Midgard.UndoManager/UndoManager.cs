@@ -11,12 +11,12 @@ namespace Midgard.WPFUndoManager
     public class UndoManager
     {
 
-        private readonly StackList<Tuple<UndoCommand, object>> undoStack;
-        private readonly ReadOnlyCollection<Tuple<UndoCommand, object>> undoReadonly;
-        private readonly StackList<Tuple<UndoCommand, object>> redoStack;
-        private readonly ReadOnlyCollection<Tuple<UndoCommand, object>> redoReadonly;
+        private readonly ObservableCollection<Tuple<UndoCommand, object>> undoStack;
+        private readonly ReadOnlyObservableCollection<Tuple<UndoCommand, object>> undoReadonly;
+        private readonly ObservableCollection<Tuple<UndoCommand, object>> redoStack;
+        private readonly ReadOnlyObservableCollection<Tuple<UndoCommand, object>> redoReadonly;
 
-        public IList<Tuple<UndoCommand, object>> UndoList
+        public ReadOnlyObservableCollection<Tuple<UndoCommand, object>> UndoList
         {
             get
             {
@@ -24,7 +24,7 @@ namespace Midgard.WPFUndoManager
             }
         }
 
-        public IList<Tuple<UndoCommand, object>> RediList
+        public ReadOnlyObservableCollection<Tuple<UndoCommand, object>> RediList
         {
             get
             {
@@ -35,10 +35,10 @@ namespace Midgard.WPFUndoManager
 
         public UndoManager()
         {
-            undoStack = new StackList<Tuple<UndoCommand, object>>();
-            undoReadonly = new ReadOnlyCollection<Tuple<UndoCommand, object>>(undoStack);
-            redoStack = new StackList<Tuple<UndoCommand, object>>();
-            redoReadonly = new ReadOnlyCollection<Tuple<UndoCommand, object>>(redoStack);
+            undoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
+            undoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(undoStack);
+            redoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
+            redoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(redoStack);
         }
 
         public void Undo()
@@ -63,7 +63,7 @@ namespace Midgard.WPFUndoManager
                 undoStack.Clear();
                 return;
             }
-
+            undoStack.Push(new Tuple<UndoCommand, object>(command, parameter));
 
         }
 
