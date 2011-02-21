@@ -61,11 +61,13 @@ namespace Midgard.WPFUndoManager
         #region CommandUndo
         internal void RegisterCommandUsage(UndoCommand command, object parameter)
         {
-            redoStack.Clear();
-            if (!command.CanBeUndone)
             {
-                undoStack.Clear();
-                return;
+                redoStack.Clear();
+                if (!command.CanBeUndone)
+                {
+                    undoStack.Clear();
+                    return;
+                }
             }
             undoStack.Push(new Tuple<UndoCommand, object>(command, parameter));
 
@@ -73,23 +75,24 @@ namespace Midgard.WPFUndoManager
         #endregion
 
 
-        INotifyPropertyChanged[] toObserve;
 
-        const object[] emptyArray = new object[0];
+
+        private readonly object[] emptyArray = new object[0];
 
         Dictionary<Tuple<object, String>, object> oldValues;
-        //Dictionary<Tuple<object, String>, object> newValues;
-
+        HashSet<Tuple<Object, String, object>> notTrackChanges;
 
         public UndoManager(params INotifyPropertyChanged[] toObserve)
         {
-            this.toObserve = toObserve;
+            notTrackChanges = new HashSet<Tuple<object, string, object>>();
+            oldValues = new Dictionary<Tuple<object, string>, object>();
             foreach (var item in toObserve)
             {
                 item.PropertyChanged += new PropertyChangedEventHandler(item_PropertyChanged);
                 foreach (var prop in item.GetType().GetProperties())
                 {
-                    if (prop.CanRead)
+                    //Damit der UndoMeschanissmus funktioniert, muss die Property sowohl lesbar als auch schreibbar sein.
+                    if (prop.CanRead && prop.CanWrite)
                         oldValues[new Tuple<object, string>(item, prop.Name)] = prop.GetValue(item, emptyArray);
                 }
             }
@@ -99,17 +102,31 @@ namespace Midgard.WPFUndoManager
         {
             var property = sender.GetType().GetProperty(e.PropertyName);
             var tupel = new Tuple<object, string>(sender, e.PropertyName);
-            if (oldValues.ContainsKey(tupel))
+            if (oldValues.ContainsKey(tupel) && property.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length == 0)
             {
                 var newValue = property.GetValue(sender, emptyArray);
+
+                var notChangedTuple = new Tuple<Object, String, object>(sender, e.PropertyName, newValue);
+                if (notTrackChanges.Contains(notChangedTuple))
+                {
+                    notTrackChanges.Remove(notChangedTuple);
+                    return;
+                }
+
+
                 var oldValue = oldValues[tupel];
                 oldValues[tupel] = newValue;
-                if (property.CanWrite)
-                {
-                    var UndoCommand = new UndoCommand(this, obj => property.SetValue(sender, newValue, emptyArray), obj => property.SetValue(sender, oldValues, emptyArray));
-                    undoStack.Push(new Tuple<UndoCommand, object>(UndoCommand, null));
-                }
+
+                var UndoCommand = new UndoCommand(this, obj => ChangePropertyValue(property, sender, newValue), obj => ChangePropertyValue(property, sender, oldValue));
+                RegisterCommandUsage(UndoCommand, null);
             }
+        }
+
+        private void ChangePropertyValue(PropertyInfo prop, Object obj, object value)
+        {
+            var t = new Tuple<Object, String, object>(obj, prop.Name, value);
+            notTrackChanges.Add(t);
+            prop.SetValue(obj, value, emptyArray);
         }
 
     }
