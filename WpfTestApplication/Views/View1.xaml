@@ -1,0 +1,17 @@
+﻿<UserControl
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+	mc:Ignorable="d"
+	xmlns:local="clr-namespace:WpfTestApplication"
+	x:Class="WpfTestApplication.View1"
+	d:DesignWidth="640" d:DesignHeight="480">
+	<UserControl.Resources>
+		<local:View1Model x:Key="View1ModelDataSource" />
+	</UserControl.Resources>
+
+	<Grid x:Name="LayoutRoot" DataContext="{Binding Source={StaticResource View1ModelDataSource}}">
+        <TextBox Height="23" HorizontalAlignment="Left" Margin="303,179,0,0" Name="textBox1" VerticalAlignment="Top" Width="120" />
+    </Grid>
+</UserControl>
