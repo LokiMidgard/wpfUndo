@@ -11,6 +11,7 @@ namespace Midgard.WPFUndoManager
     public class UndoManager
     {
 
+        #region EssentialUndo
         private readonly ObservableCollection<Tuple<UndoCommand, object>> undoStack;
         private readonly ReadOnlyObservableCollection<Tuple<UndoCommand, object>> undoReadonly;
         private readonly ObservableCollection<Tuple<UndoCommand, object>> redoStack;
@@ -54,7 +55,10 @@ namespace Midgard.WPFUndoManager
             tupel.Item1.RedoExecute(tupel.Item2);
             undoStack.Push(tupel);
         }
+        #endregion
 
+
+        #region CommandUndo
         internal void RegisterCommandUsage(UndoCommand command, object parameter)
         {
             redoStack.Clear();
@@ -66,7 +70,38 @@ namespace Midgard.WPFUndoManager
             undoStack.Push(new Tuple<UndoCommand, object>(command, parameter));
 
         }
+        #endregion
 
+
+        INotifyPropertyChanged[] toObserve;
+
+        const object[] emptyArray = new object[0];
+
+        Dictionary<Tuple<object, String>, object> oldValues;
+        //Dictionary<Tuple<object, String>, object> newValues;
+
+
+        public UndoManager(params INotifyPropertyChanged[] toObserve)
+        {
+            this.toObserve = toObserve;
+            foreach (var item in toObserve)
+            {
+                item.PropertyChanged += new PropertyChangedEventHandler(item_PropertyChanged);
+            }
+        }
+
+        void item_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            var property = sender.GetType().GetProperty(e.PropertyName);
+            var newValue = property.GetValue(sender, emptyArray);
+            var oldValue = oldValues[new Tuple<object,string>(sender,e.PropertyName)];
+            oldValues[new Tuple<object, string>(sender, e.PropertyName)] = newValue;
+            if (property.CanWrite)
+            {
+                var UndoCommand = new UndoCommand(this, obj => property.SetValue(sender, newValue, emptyArray), obj => property.SetValue(sender, oldValues, emptyArray));
+                undoStack.Push(new Tuple<UndoCommand, object>(UndoCommand, null));
+            }
+        }
 
     }
 }
