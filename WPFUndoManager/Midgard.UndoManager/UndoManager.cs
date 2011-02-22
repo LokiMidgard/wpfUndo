@@ -5,11 +5,15 @@ using System.Text;
 using System.Reflection;
 using System.ComponentModel;
 using System.Collections.ObjectModel;
+using System.Windows.Input;
 
 namespace Midgard.WPFUndoManager
 {
     public class UndoManager
     {
+
+        public ICommand Undo { get; private set; }
+        public ICommand Redo { get; private set; }
 
         #region EssentialUndo
         private readonly ObservableCollection<Tuple<UndoCommand, object>> undoStack;
@@ -25,7 +29,7 @@ namespace Midgard.WPFUndoManager
             }
         }
 
-        public ReadOnlyObservableCollection<Tuple<UndoCommand, object>> RediList
+        public ReadOnlyObservableCollection<Tuple<UndoCommand, object>> RedoList
         {
             get
             {
@@ -34,26 +38,24 @@ namespace Midgard.WPFUndoManager
         }
 
 
-        public UndoManager()
-        {
-            undoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
-            undoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(undoStack);
-            redoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
-            redoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(redoStack);
-        }
 
-        public void Undo()
+
+        private void UndoFunc()
         {
             var tupel = undoStack.Pop();
             tupel.Item1.UndoExecute(tupel.Item2);
             redoStack.Push(tupel);
+            (Redo as RedoC).RaiseCanExecuteChange();
+            (Undo as UndoC).RaiseCanExecuteChange();
         }
 
-        public void Redo()
+        private void RedoFunc()
         {
             var tupel = redoStack.Pop();
             tupel.Item1.RedoExecute(tupel.Item2);
             undoStack.Push(tupel);
+            (Redo as RedoC).RaiseCanExecuteChange();
+            (Undo as UndoC).RaiseCanExecuteChange();
         }
         #endregion
 
@@ -61,20 +63,22 @@ namespace Midgard.WPFUndoManager
         #region CommandUndo
         internal void RegisterCommandUsage(UndoCommand command, object parameter)
         {
+            redoStack.Clear();
+            (Redo as RedoC).RaiseCanExecuteChange();
+            if (!command.CanBeUndone)
             {
-                redoStack.Clear();
-                if (!command.CanBeUndone)
-                {
-                    undoStack.Clear();
-                    return;
-                }
+                undoStack.Clear();
+                (Undo as UndoC).RaiseCanExecuteChange();
+                return;
             }
             undoStack.Push(new Tuple<UndoCommand, object>(command, parameter));
-
+            (Undo as UndoC).RaiseCanExecuteChange();
         }
         #endregion
 
 
+
+        #region Property
 
 
         private readonly object[] emptyArray = new object[0];
@@ -83,7 +87,14 @@ namespace Midgard.WPFUndoManager
         HashSet<Tuple<Object, String, object>> notTrackChanges;
 
         public UndoManager(params INotifyPropertyChanged[] toObserve)
+            : base()
         {
+            undoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
+            undoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(undoStack);
+            redoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
+            redoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(redoStack);
+            Undo = new UndoC(this);
+            Redo = new RedoC(this);
             notTrackChanges = new HashSet<Tuple<object, string, object>>();
             oldValues = new Dictionary<Tuple<object, string>, object>();
             foreach (var item in toObserve)
@@ -128,6 +139,64 @@ namespace Midgard.WPFUndoManager
             notTrackChanges.Add(t);
             prop.SetValue(obj, value, emptyArray);
         }
+        #endregion
 
+
+        private class UndoC : ICommand
+        {
+
+            public UndoC(UndoManager manager)
+            {
+                this.manager = manager;
+            }
+
+            public bool CanExecute(object parameter)
+            {
+                return manager.UndoList.Count > 1;
+            }
+
+            public event EventHandler CanExecuteChanged;
+            private UndoManager manager;
+
+            public void Execute(object parameter)
+            {
+                manager.UndoFunc();
+            }
+
+            public void RaiseCanExecuteChange()
+            {
+                if (CanExecuteChanged != null)
+                    CanExecuteChanged(this, EventArgs.Empty);
+            }
+        }
+
+
+        private class RedoC : ICommand
+        {
+
+            public RedoC(UndoManager manager)
+            {
+                this.manager = manager;
+            }
+
+            public bool CanExecute(object parameter)
+            {
+                return manager.RedoList.Count > 1;
+            }
+
+            public event EventHandler CanExecuteChanged;
+            private UndoManager manager;
+
+            public void Execute(object parameter)
+            {
+                manager.RedoFunc();
+            }
+
+            public void RaiseCanExecuteChange()
+            {
+                if (CanExecuteChanged != null)
+                    CanExecuteChanged(this, EventArgs.Empty);
+            }
+        }
     }
 }
