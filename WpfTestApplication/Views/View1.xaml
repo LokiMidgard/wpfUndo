@@ -12,6 +12,9 @@
 	</UserControl.Resources>
 
 	<Grid x:Name="LayoutRoot" DataContext="{Binding Source={StaticResource View1ModelDataSource}}">
-        <TextBox Height="23" HorizontalAlignment="Left" Margin="303,179,0,0" Name="textBox1" VerticalAlignment="Top" Width="120" />
+        <TextBox Text="{Binding Path=Name}" Height="23" HorizontalAlignment="Left" Margin="12,33,0,0" Name="textBox1" VerticalAlignment="Top" Width="120" />
+        <Button Content="Button" Height="23" HorizontalAlignment="Left" Margin="12,62,0,0" Name="button1" VerticalAlignment="Top" Width="120" Command="{Binding SetText}" />
+        <Button Content="Undo" Height="23" HorizontalAlignment="Left" Margin="12,91,0,0" Name="button2" VerticalAlignment="Top" Width="75" Command="{Binding Path=UndoManager.Undo}" />
+        <Button Content="Redo" Height="23" HorizontalAlignment="Left" Margin="93,91,0,0" Name="button3" VerticalAlignment="Top" Width="75" Command="{Binding Path=UndoManager.Redo}" />
     </Grid>
 </UserControl>
