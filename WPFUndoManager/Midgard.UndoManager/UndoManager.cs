@@ -58,8 +58,7 @@ namespace Midgard.WPFUndoManager
             (Undo as UndoC).RaiseCanExecuteChange();
         }
         #endregion
-
-
+               
         #region CommandUndo
         internal void RegisterCommandUsage(UndoCommand command, object parameter)
         {
@@ -75,9 +74,7 @@ namespace Midgard.WPFUndoManager
             (Undo as UndoC).RaiseCanExecuteChange();
         }
         #endregion
-
-
-
+        
         #region Property
 
 
@@ -141,7 +138,6 @@ namespace Midgard.WPFUndoManager
         }
         #endregion
 
-
         private class UndoC : ICommand
         {
 
@@ -169,8 +165,7 @@ namespace Midgard.WPFUndoManager
                     CanExecuteChanged(this, EventArgs.Empty);
             }
         }
-
-
+       
         private class RedoC : ICommand
         {
 
