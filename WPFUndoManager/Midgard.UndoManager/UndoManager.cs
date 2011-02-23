@@ -78,10 +78,10 @@ namespace Midgard.WPFUndoManager
         #region Property
 
 
-        private readonly object[] emptyArray = new object[0];
+        internal readonly object[] emptyArray = new object[0];
 
-        Dictionary<Tuple<object, String>, object> oldValues;
-        HashSet<Tuple<Object, String, object>> notTrackChanges;
+        internal readonly Dictionary<Tuple<object, String>, object> oldValues;
+        internal readonly HashSet<Tuple<Object, String, object>> notTrackChanges;
 
         public UndoManager(params INotifyPropertyChanged[] toObserve)
             : base()
@@ -132,17 +132,29 @@ namespace Midgard.WPFUndoManager
                 var oldValue = oldValues[tupel];
                 oldValues[tupel] = newValue;
 
-                var UndoCommand = new UndoCommand(this, obj => ChangePropertyValue(property, sender, newValue), obj => ChangePropertyValue(property, sender, oldValue));
-                RegisterCommandUsage(UndoCommand, null);
+                UndoCommand undoCommand = null;
+
+                if (this.undoStack.Count != 0 && this.undoStack.Peek().Item1 is PropertyUndoCommand)
+                {
+                    var lastCommand = this.undoStack.Peek().Item1 as PropertyUndoCommand;
+                    if (Object.ReferenceEquals(sender, lastCommand.Sender) && property.GetCustomAttributes(typeof(FusePropertyChangeAttribute), true).Length > 0)
+                    {
+                        var fuse = property.GetCustomAttributes(typeof(FusePropertyChangeAttribute), true)[0] as FusePropertyChangeAttribute;
+                        if (fuse.CanFuse(oldValue, newValue))
+                        {
+                            undoCommand = new PropertyUndoCommand(this, sender, property, lastCommand.OldValue, fuse.Fuse(oldValue, newValue));
+                            undoStack.Pop();
+                        }
+                    }
+                }
+
+                if (undoCommand == null)
+                    undoCommand = new PropertyUndoCommand(this, sender, property, oldValue, newValue);
+                RegisterCommandUsage(undoCommand, null);
             }
         }
 
-        private void ChangePropertyValue(PropertyInfo prop, Object obj, object value)
-        {
-            var t = new Tuple<Object, String, object>(obj, prop.Name, value);
-            notTrackChanges.Add(t);
-            prop.SetValue(obj, value, emptyArray);
-        }
+
         #endregion
 
         private class UndoC : ICommand

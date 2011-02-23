@@ -19,5 +19,13 @@ namespace Midgard.WPFUndoManager
             coll.RemoveAt(coll.Count - 1);
             return item;
         }
+
+        public static T Peek<T>(this ObservableCollection<T> coll)
+        {
+            var item = coll[coll.Count - 1];
+            return item;
+        }
+        
+        
     }
 }
