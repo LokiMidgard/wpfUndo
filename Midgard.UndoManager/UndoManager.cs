@@ -58,7 +58,7 @@ namespace Midgard.WPFUndoManager
             (Undo as UndoC).RaiseCanExecuteChange();
         }
         #endregion
-               
+
         #region CommandUndo
         internal void RegisterCommandUsage(UndoCommand command, object parameter)
         {
@@ -74,7 +74,7 @@ namespace Midgard.WPFUndoManager
             (Undo as UndoC).RaiseCanExecuteChange();
         }
         #endregion
-        
+
         #region Property
 
 
@@ -96,19 +96,26 @@ namespace Midgard.WPFUndoManager
             oldValues = new Dictionary<Tuple<object, string>, object>();
             foreach (var item in toObserve)
             {
-                item.PropertyChanged += new PropertyChangedEventHandler(item_PropertyChanged);
+                bool valueAdded = false;
                 foreach (var prop in item.GetType().GetProperties())
                 {
                     //Damit der UndoMeschanissmus funktioniert, muss die Property sowohl lesbar als auch schreibbar sein.
-                    if (prop.CanRead && prop.CanWrite)
+                    if (prop.CanRead && prop.CanWrite && prop.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length == 0)
+                    {
                         oldValues[new Tuple<object, string>(item, prop.Name)] = prop.GetValue(item, emptyArray);
+                        valueAdded = true;
+                    }
                 }
+                if (valueAdded)
+                    item.PropertyChanged += new PropertyChangedEventHandler(item_PropertyChanged);
             }
         }
 
         void item_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             var property = sender.GetType().GetProperty(e.PropertyName);
+            if (property.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length > 0)
+                return;
             var tupel = new Tuple<object, string>(sender, e.PropertyName);
             if (oldValues.ContainsKey(tupel) && property.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length == 0)
             {
@@ -165,7 +172,7 @@ namespace Midgard.WPFUndoManager
                     CanExecuteChanged(this, EventArgs.Empty);
             }
         }
-       
+
         private class RedoC : ICommand
         {
 
