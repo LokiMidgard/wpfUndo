@@ -167,7 +167,7 @@ namespace Midgard.WPFUndoManager
 
             public bool CanExecute(object parameter)
             {
-                return manager.UndoList.Count > 1;
+                return manager.UndoList.Count > 0;
             }
 
             public event EventHandler CanExecuteChanged;
@@ -195,7 +195,7 @@ namespace Midgard.WPFUndoManager
 
             public bool CanExecute(object parameter)
             {
-                return manager.RedoList.Count > 1;
+                return manager.RedoList.Count > 0;
             }
 
             public event EventHandler CanExecuteChanged;
