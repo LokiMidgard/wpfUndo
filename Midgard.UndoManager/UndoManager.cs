@@ -6,6 +6,7 @@ using System.Reflection;
 using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using System.Diagnostics.Contracts;
 
 namespace Midgard.WPFUndoManager
 {
@@ -37,11 +38,22 @@ namespace Midgard.WPFUndoManager
             }
         }
 
+        [ContractInvariantMethod]
+        private void ObjectInvariant()
+        {
+            Contract.Invariant(undoReadonly != null);
+            Contract.Invariant(redoReadonly != null);
+            Contract.Invariant(undoStack != null);
+            Contract.Invariant(redoStack != null);
+            Contract.Invariant(Undo != null);
+            Contract.Invariant(Redo != null);
+        }
 
 
 
         private void UndoFunc()
         {
+            Contract.Requires(undoStack.Count > 0);
             var tupel = undoStack.Pop();
             tupel.Item1.UndoExecute(tupel.Item2);
             redoStack.Push(tupel);
@@ -51,6 +63,7 @@ namespace Midgard.WPFUndoManager
 
         private void RedoFunc()
         {
+            Contract.Requires(redoStack.Count > 0);
             var tupel = redoStack.Pop();
             tupel.Item1.RedoExecute(tupel.Item2);
             undoStack.Push(tupel);
@@ -84,8 +97,8 @@ namespace Midgard.WPFUndoManager
         internal readonly HashSet<Tuple<Object, String, object>> notTrackChanges;
 
         public UndoManager(params INotifyPropertyChanged[] toObserve)
-            : base()
         {
+            Contract.Requires(toObserve != null);
             undoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
             undoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(undoStack);
             redoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
@@ -113,6 +126,8 @@ namespace Midgard.WPFUndoManager
 
         void item_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
+            Contract.Requires(sender != null);
+            Contract.Requires(e.PropertyName != null);
             var property = sender.GetType().GetProperty(e.PropertyName);
             if (property.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length > 0)
                 return;
@@ -134,7 +149,7 @@ namespace Midgard.WPFUndoManager
 
                 UndoCommand undoCommand = null;
 
-                if (this.undoStack.Count != 0 && this.undoStack.Peek().Item1 is PropertyUndoCommand)
+                if (this.undoStack.Count > 0 && this.undoStack.Peek().Item1 is PropertyUndoCommand)
                 {
                     var lastCommand = this.undoStack.Peek().Item1 as PropertyUndoCommand;
                     if (Object.ReferenceEquals(sender, lastCommand.Sender) && property.GetCustomAttributes(typeof(FusePropertyChangeAttribute), true).Length > 0)
@@ -162,6 +177,7 @@ namespace Midgard.WPFUndoManager
 
             public UndoC(UndoManager manager)
             {
+                Contract.Requires(manager != null);
                 this.manager = manager;
             }
 
@@ -175,6 +191,9 @@ namespace Midgard.WPFUndoManager
 
             public void Execute(object parameter)
             {
+                if (!CanExecute(parameter))
+                    throw new ArgumentException();
+                Contract.Assume(manager.undoStack.Count > 0);
                 manager.UndoFunc();
             }
 
@@ -190,6 +209,7 @@ namespace Midgard.WPFUndoManager
 
             public RedoC(UndoManager manager)
             {
+                Contract.Requires(manager != null);
                 this.manager = manager;
             }
 
@@ -203,6 +223,9 @@ namespace Midgard.WPFUndoManager
 
             public void Execute(object parameter)
             {
+                if (!CanExecute(parameter))
+                    throw new ArgumentException();
+                Contract.Assume(manager.redoStack.Count > 0);
                 manager.RedoFunc();
             }
 

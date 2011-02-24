@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Diagnostics.Contracts;
 
 namespace Midgard.WPFUndoManager
 {
@@ -12,6 +13,7 @@ namespace Midgard.WPFUndoManager
 
         public T Pop()
         {
+            Contract.Requires(Count > 0);
             var first = list.First.Value;
             RemoveAt(0);
             return first;
@@ -29,7 +31,7 @@ namespace Midgard.WPFUndoManager
 
         #endregion
 
-        LinkedList<T> list= new LinkedList<T>();
+        LinkedList<T> list = new LinkedList<T>();
 
         int currentIndex;
 
@@ -39,6 +41,7 @@ namespace Midgard.WPFUndoManager
 
         public int IndexOf(T item)
         {
+
             if (list.Count == 0)
                 return -1;
             currentIndex = 0;
@@ -50,13 +53,16 @@ namespace Midgard.WPFUndoManager
                 if (currentNode == null)
                     return -1;
             }
+            Contract.Assume(currentIndex < Count);
             return currentIndex;
         }
 
         public void Insert(int index, T item)
         {
-            if (index > list.Count || index < 0)
-                throw new IndexOutOfRangeException(index + " Ausserhalb dem Breich von " + list.Count);
+            Contract.Ensures(Count == Contract.OldValue(Count) + 1);
+
+            if (index > Count)
+                throw new IndexOutOfRangeException();
             if (index == list.Count)
             {
                 currentIndex = index;
@@ -70,6 +76,13 @@ namespace Midgard.WPFUndoManager
 
         private void goToIndex(int index)
         {
+            Contract.Requires(index < Count);
+            Contract.Requires(index >= 0);
+            Contract.Ensures(Count == Contract.OldValue(Count));
+            Contract.Ensures(currentNode != null);
+            Contract.Ensures(currentIndex < Count);
+            Contract.Ensures(currentIndex >= 0);
+
             int distanceToCurrent = Math.Abs(index - currentIndex);
             int distanceToFirst = index;
             int distanceToLast = list.Count - index;
@@ -96,18 +109,37 @@ namespace Midgard.WPFUndoManager
                 --currentIndex;
                 currentNode = currentNode.Previous;
             }
+            Contract.Assume(currentNode != null);
         }
 
         public void RemoveAt(int index)
         {
-            if (index >= list.Count || index < 0)
-                throw new IndexOutOfRangeException(index + " Ausserhalb dem Breich von " + Count);
-            goToIndex(index);
-            if (index == list.Count - 1)
+            //Ist nötig da ansonsten die CodeContracts Fehlschlagen, warum auch immer.
+            RemoveAtIndex(index);
+        }
+
+        private void RemoveAtIndex(int index)
+        {
+            Contract.Requires(Count > 0);
+            Contract.Requires(index < Count);
+            Contract.Requires(index >=0);
+            Contract.Ensures(Count == Contract.OldValue(Count) - 1);
+
+            if (index == Count - 1)
             {
                 currentNode = currentNode.Previous;
                 --index;
                 list.RemoveLast();
+                return;
+            }
+            else
+            {
+                goToIndex(index);
+                currentNode = currentNode.Next;
+                Contract.Assume(currentNode != null);
+                var nodeToRemove = currentNode;
+                list.Remove(nodeToRemove);
+                return;
             }
 
         }
@@ -132,7 +164,7 @@ namespace Midgard.WPFUndoManager
                     currentNode = list.Last;
                     return;
                 }
-  
+
                 goToIndex(index);
                 currentNode.Value = value;
             }
@@ -165,7 +197,11 @@ namespace Midgard.WPFUndoManager
 
         public int Count
         {
-            get { return list.Count; }
+            get
+            {
+                Contract.Ensures(Contract.Result<int>() == list.Count);
+                return list.Count;
+            }
         }
 
         public bool IsReadOnly
