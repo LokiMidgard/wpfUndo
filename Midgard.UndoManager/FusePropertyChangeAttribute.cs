@@ -7,25 +7,19 @@ using System.Diagnostics.Contracts;
 namespace Midgard.WPFUndoManager
 {
     [AttributeUsage(AttributeTargets.Property, Inherited = true, AllowMultiple = false)]
-    public sealed class FusePropertyChangeAttribute : Attribute
+    public abstract class FusePropertyChangeAttribute : Attribute
     {
-        readonly Func<object, object, bool> canFuse;
-        readonly Func<object, object, object> fuse;
 
-        public FusePropertyChangeAttribute(Func<object,object,bool> canFuse,Func<object,object,object> fuse)
+        protected abstract bool FuseFunction(object originalValue, object firstChange, object seccondChange);
+
+        /// <summary>
+        /// A Function with the first Parameter the old Value of the Previus Change, the Seccond Parameter the new Value of the Previos Change and the last Parameter the new Value that shuld be assigned.
+        /// This Function Returns true if those two changes can be merged.
+        /// </summary>
+        public Func<object, object, object, bool> CanFuse
         {
-            Contract.Requires(canFuse != null);
-            Contract.Requires(fuse != null);
-            this.canFuse = canFuse;
-            this.fuse = fuse;
+            get { return FuseFunction; }
         }
-
-        public Func<object, object, bool> CanFuse
-        {
-            get { return canFuse; }
-        }
-
-        public Func<object, object, object> Fuse { get { return fuse; } }
 
     }
 }
