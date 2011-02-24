@@ -27,6 +27,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <NoWarn>414</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -52,6 +53,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BasicUndoTest.cs" />
+    <Compile Include="FusePropertyTestViewModel.cs" />
+    <Compile Include="FusePropertyTest.cs" />
     <Compile Include="IgnoreUndoManagerAttributeTestViewModel.cs" />
     <Compile Include="IgnoreUndoManagerAttributeTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

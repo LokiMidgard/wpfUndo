@@ -140,9 +140,9 @@ namespace Midgard.WPFUndoManager
                     if (Object.ReferenceEquals(sender, lastCommand.Sender) && property.GetCustomAttributes(typeof(FusePropertyChangeAttribute), true).Length > 0)
                     {
                         var fuse = property.GetCustomAttributes(typeof(FusePropertyChangeAttribute), true)[0] as FusePropertyChangeAttribute;
-                        if (fuse.CanFuse(oldValue, newValue))
+                        if (fuse.CanFuse(lastCommand.OldValue, lastCommand.NewValue, newValue))
                         {
-                            undoCommand = new PropertyUndoCommand(this, sender, property, lastCommand.OldValue, fuse.Fuse(oldValue, newValue));
+                            undoCommand = new PropertyUndoCommand(this, sender, property, lastCommand.OldValue, newValue);
                             undoStack.Pop();
                         }
                     }
