@@ -16,5 +16,7 @@
         <Button Content="Button" Height="23" HorizontalAlignment="Left" Margin="12,62,0,0" Name="button1" VerticalAlignment="Top" Width="120" Command="{Binding SetText}" />
         <Button Content="Undo" Height="23" HorizontalAlignment="Left" Margin="12,91,0,0" Name="button2" VerticalAlignment="Top" Width="75" Command="{Binding Path=UndoManager.Undo}" />
         <Button Content="Redo" Height="23" HorizontalAlignment="Left" Margin="93,91,0,0" Name="button3" VerticalAlignment="Top" Width="75" Command="{Binding Path=UndoManager.Redo}" />
+        <ListView Height="212" HorizontalAlignment="Left" Margin="36,142,0,0" Name="listBox1" VerticalAlignment="Top" Width="172" ItemsSource="{Binding Path=FirstList}" AllowDrop="True" PreviewMouseLeftButtonDown="listBox1_PreviewMouseLeftButtonDown" MouseMove="listBox1_MouseMove" local:ListDrop.DropCommand="{Binding Path=FromSeccondToFirst}" SelectionMode="Single" />
+        <ListView Height="212" HorizontalAlignment="Left" Margin="245,142,0,0" Name="listBox2" VerticalAlignment="Top" Width="161" ItemsSource="{Binding Path=SeccondList}" AllowDrop="True" PreviewMouseLeftButtonDown="listBox2_PreviewMouseLeftButtonDown" MouseMove="listBox2_MouseMove"  local:ListDrop.DropCommand="{Binding Path=FromFirstToSeccond}" SelectionMode="Single" />
     </Grid>
 </UserControl>
