@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using Midgard.WPFUndoManager;
+using System.Collections.ObjectModel;
 
 namespace WpfTestApplication
 {
@@ -16,7 +17,17 @@ namespace WpfTestApplication
             Name = "muh";
 
             UndoManager = new UndoManager(this);
-		}
+            FirstList = new ObservableCollection<string>(new String[] {"1","2"});
+            SeccondList = new ObservableCollection<string>(new String[] { "a", "b" });
+
+
+            Action<object> fromOneToTwo = obj => { FirstList.Remove(obj as String); SeccondList.Add(obj as string); };
+            Action<object> fromTwpToOne = obj => { SeccondList.Remove(obj as String); FirstList.Add(obj as string); };
+
+            FromFirstToSeccond = new UndoCommand(UndoManager, fromOneToTwo, fromTwpToOne, obj => FirstList.Contains(obj as string));    
+            FromSeccondToFirst = new UndoCommand(UndoManager, fromTwpToOne, fromOneToTwo, obj => SeccondList.Contains(obj as string));
+
+        }
 
         public UndoManager UndoManager { get; private set; }
 
@@ -27,6 +38,12 @@ namespace WpfTestApplication
             get { return name; }
             set { name = value; this.NotifyPropertyChanged("Name"); }
         }
+
+        public ObservableCollection<String> FirstList { get; private set; }
+        public ObservableCollection<String> SeccondList { get; private set; }
+
+        public ICommand FromFirstToSeccond { get; private set; }
+        public ICommand FromSeccondToFirst { get; private set; }
 
         public ICommand SetText
         {
