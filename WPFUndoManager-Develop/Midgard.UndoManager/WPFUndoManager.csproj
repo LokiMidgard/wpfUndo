@@ -9,7 +9,7 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Midgard.WPFUndoManager</RootNamespace>
-    <AssemblyName>Midgard.UndoManager</AssemblyName>
+    <AssemblyName>WPFUndoManager</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SccProjectName>SAK</SccProjectName>
