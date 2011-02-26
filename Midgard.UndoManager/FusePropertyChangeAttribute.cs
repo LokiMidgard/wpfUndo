@@ -6,10 +6,20 @@ using System.Diagnostics.Contracts;
 
 namespace Midgard.WPFUndoManager
 {
+    /// <summary>
+    /// This Attribute allows to unite consecutiv Changes.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Property, Inherited = true, AllowMultiple = false)]
     public abstract class FusePropertyChangeAttribute : Attribute
     {
 
+        /// <summary>
+        /// Allows to uinite two Changes that were performed right after another.
+        /// </summary>
+        /// <param name="originalValue">The Value before the last Change</param>
+        /// <param name="firstChange">The Value after the last Change</param>
+        /// <param name="seccondChange">The Value after this Change</param>
+        /// <returns>Returns true if the firstChange can be discarded. So using Undo returning to the Original Value instad to first Value.</returns>
         protected abstract bool FuseFunction(object originalValue, object firstChange, object seccondChange);
 
         /// <summary>

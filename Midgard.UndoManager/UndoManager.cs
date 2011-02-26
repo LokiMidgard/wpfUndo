@@ -14,7 +14,14 @@ namespace Midgard.WPFUndoManager
     {
 
 
+        /// <summary>
+        /// Expose the Undo Command
+        /// </summary>
         public ICommand Undo { get { return undoCommand; } }
+        
+        /// <summary>
+        /// Expose the Redo Command
+        /// </summary>
         public ICommand Redo { get { return redoCommand; } }
 
         #region EssentialUndo
@@ -25,6 +32,9 @@ namespace Midgard.WPFUndoManager
         private readonly UndoC undoCommand;
         private readonly RedoC redoCommand;
 
+        /// <summary>
+        /// Expose a List of the last done Actions
+        /// </summary>
         public ReadOnlyObservableCollection<Tuple<UndoCommand, object>> UndoList
         {
             get
@@ -33,6 +43,9 @@ namespace Midgard.WPFUndoManager
             }
         }
 
+        /// <summary>
+        /// Expose a List of the last undone Actions
+        /// </summary>
         public ReadOnlyObservableCollection<Tuple<UndoCommand, object>> RedoList
         {
             get
@@ -103,6 +116,10 @@ namespace Midgard.WPFUndoManager
         internal readonly Dictionary<Tuple<object, String>, object> oldValues;
         internal readonly HashSet<Tuple<Object, String, object>> notTrackChanges;
 
+        /// <summary>
+        /// Creates an Instance of UndoManager
+        /// </summary>
+        /// <param name="toObserve">All Object's that shuld be Monitored.</param>
         public UndoManager(params INotifyPropertyChanged[] toObserve)
         {
             Contract.Requires(toObserve != null);
