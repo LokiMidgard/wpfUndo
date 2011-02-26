@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Windows.Input;
+using System.Diagnostics.Contracts;
 
 namespace Midgard.WPFUndoManager
 {
@@ -16,9 +17,20 @@ namespace Midgard.WPFUndoManager
 
         internal bool CanBeUndone { get { return unExecute != null; } }
 
+       /// <summary>
+       /// Creates an UndoCommand.
+       /// </summary>
+       /// <param name="manager">The UndoManager that manages this Command and can Undo it.</param>
+       /// <param name="execute">The Action that shuld be perfomed when execute.</param>
+       /// <param name="unExecute">The Action thet revert the changes of execute. If null this Command can't be undone.</param>
+       /// <param name="canExecute">The Predicate that difines if an Execute can be performed.</param>
+       /// <remarks>If this Command can't be undone, all previous commands on the undone Stack are deleted!</remarks>
         public UndoCommand(UndoManager manager, Action<object> execute, Action<object> unExecute = null,
                    Predicate<object> canExecute = null)
         {
+            Contract.Requires(manager != null);
+            Contract.Requires(execute != null);
+
             this.manager = manager;
             this.execute = execute;
             this.canExecute = canExecute;
