@@ -18,7 +18,7 @@ namespace Midgard.WPFUndoManager
         /// Expose the Undo Command
         /// </summary>
         public ICommand Undo { get { return undoCommand; } }
-        
+
         /// <summary>
         /// Expose the Redo Command
         /// </summary>
@@ -103,7 +103,24 @@ namespace Midgard.WPFUndoManager
                 undoCommand.RaiseCanExecuteChange();
                 return;
             }
-            undoStack.Push(new Tuple<UndoCommand, object>(command, parameter));
+
+            UndoCommand editedCommand = null;
+            if (this.undoStack.Count > 0 && this.undoStack.Peek().Item1 is PropertyUndoCommand && command is PropertyUndoCommand)
+            {
+                var lastCommand = this.undoStack.Peek().Item1 as PropertyUndoCommand;
+                var newCommand = command as PropertyUndoCommand;
+                if (Object.ReferenceEquals(newCommand.Sender, lastCommand.Sender) && lastCommand.NewValue == newCommand.OldValue && newCommand.Property.Equals(lastCommand.Property) && newCommand.Property.GetCustomAttributes(typeof(FusePropertyChangeAttribute), true).Length > 0)
+                {
+                    var fuse = newCommand.Property.GetCustomAttributes(typeof(FusePropertyChangeAttribute), true)[0] as FusePropertyChangeAttribute;
+                    if (fuse.CanFuse(lastCommand.OldValue, lastCommand.NewValue, newCommand.NewValue))
+                    {
+                        editedCommand = new PropertyUndoCommand(this, newCommand.Sender, newCommand.Property, lastCommand.OldValue, newCommand.NewValue);
+                        undoStack.Pop();
+                    }
+                }
+            }
+
+            undoStack.Push(new Tuple<UndoCommand, object>(editedCommand ?? command, parameter));
             undoCommand.RaiseCanExecuteChange();
         }
         #endregion
@@ -173,24 +190,7 @@ namespace Midgard.WPFUndoManager
                 var oldValue = oldValues[tupel];
                 oldValues[tupel] = newValue;
 
-                UndoCommand undoCommand = null;
-
-                if (this.undoStack.Count > 0 && this.undoStack.Peek().Item1 is PropertyUndoCommand)
-                {
-                    var lastCommand = this.undoStack.Peek().Item1 as PropertyUndoCommand;
-                    if (Object.ReferenceEquals(sender, lastCommand.Sender) && property.GetCustomAttributes(typeof(FusePropertyChangeAttribute), true).Length > 0)
-                    {
-                        var fuse = property.GetCustomAttributes(typeof(FusePropertyChangeAttribute), true)[0] as FusePropertyChangeAttribute;
-                        if (fuse.CanFuse(lastCommand.OldValue, lastCommand.NewValue, newValue))
-                        {
-                            undoCommand = new PropertyUndoCommand(this, sender, property, lastCommand.OldValue, newValue);
-                            undoStack.Pop();
-                        }
-                    }
-                }
-
-                if (undoCommand == null)
-                    undoCommand = new PropertyUndoCommand(this, sender, property, oldValue, newValue);
+                var undoCommand = new PropertyUndoCommand(this, sender, property, oldValue, newValue);
                 RegisterCommandUsage(undoCommand, null);
             }
         }
