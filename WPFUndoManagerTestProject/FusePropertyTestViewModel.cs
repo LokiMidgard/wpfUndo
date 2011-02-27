@@ -15,10 +15,17 @@ namespace WPFUndoManagerTestProject
     {
         public FusePropertyTestViewModel()
         {
-            UndoManager = new UndoManager(this);
+            allModelsList.Add(this);
+            StaticUndoManager = new UndoManager(allModelsList.ToArray());
         }
 
-        public UndoManager UndoManager { get; private set; }
+        static List<FusePropertyTestViewModel> allModelsList = new List<FusePropertyTestViewModel>();
+
+        public UndoManager UndoManager { get { return StaticUndoManager; } }
+
+        public static UndoManager StaticUndoManager { get; private set; }
+
+
 
         private int fuseInt;
 
