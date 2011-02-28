@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using System.Diagnostics.Contracts;
+using System.Collections.Specialized;
 
 namespace Midgard.WPFUndoManager
 {
@@ -23,14 +24,6 @@ namespace Midgard.WPFUndoManager
         /// Expose the Redo Command
         /// </summary>
         public ICommand Redo { get { return redoCommand; } }
-
-        #region EssentialUndo
-        private readonly ObservableCollection<Tuple<UndoCommand, object>> undoStack;
-        private readonly ReadOnlyObservableCollection<Tuple<UndoCommand, object>> undoReadonly;
-        private readonly ObservableCollection<Tuple<UndoCommand, object>> redoStack;
-        private readonly ReadOnlyObservableCollection<Tuple<UndoCommand, object>> redoReadonly;
-        private readonly UndoC undoCommand;
-        private readonly RedoC redoCommand;
 
         /// <summary>
         /// Expose a List of the last done Actions
@@ -54,6 +47,83 @@ namespace Midgard.WPFUndoManager
             }
         }
 
+        private readonly ObservableCollection<Tuple<UndoCommand, object>> undoStack;
+        private readonly ReadOnlyObservableCollection<Tuple<UndoCommand, object>> undoReadonly;
+        private readonly ObservableCollection<Tuple<UndoCommand, object>> redoStack;
+        private readonly ReadOnlyObservableCollection<Tuple<UndoCommand, object>> redoReadonly;
+        private readonly UndoC undoCommand;
+        private readonly RedoC redoCommand;
+
+        internal readonly object[] emptyArray = new object[0];
+
+        internal readonly Dictionary<Tuple<object, String>, object> oldValues;
+        internal readonly Dictionary<Tuple<object, PropertyInfo>, INotifyCollectionChanged> colleciontsListento;
+        internal readonly HashSet<Tuple<Object, String, object>> notTrackChanges;
+
+
+        /// <summary>
+        /// Creates an Instance of UndoManager
+        /// </summary>
+        /// <param name="toObserve">All Object's that shuld be Monitored.</param>
+        public UndoManager(params INotifyPropertyChanged[] toObserve)
+        {
+            Contract.Requires(toObserve != null);
+
+            undoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
+            undoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(undoStack);
+            redoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
+            redoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(redoStack);
+            undoCommand = new UndoC(this);
+            redoCommand = new RedoC(this);
+            notTrackChanges = new HashSet<Tuple<object, string, object>>();
+            oldValues = new Dictionary<Tuple<object, string>, object>();
+            foreach (var item in toObserve)
+            {
+                bool valueAdded = false;
+                foreach (var prop in item.GetType().GetProperties())
+                {
+                    //Damit der UndoMeschanissmus funktioniert, muss die Property sowohl lesbar als auch schreibbar sein.
+                    if (prop.CanRead && prop.CanWrite && prop.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length == 0)
+                    {
+                        oldValues[new Tuple<object, string>(item, prop.Name)] = prop.GetValue(item, emptyArray);
+                        valueAdded = true;
+                    }
+                    var collectionChanged = prop.GetValue(item, new object[0]) as INotifyCollectionChanged;
+                    if (collectionChanged != null)
+                    {
+                        collectionChanged.CollectionChanged += new NotifyCollectionChangedEventHandler(collectionChanged_CollectionChanged);
+                        this.colleciontsListento.Add(new Tuple<object, PropertyInfo>(item, prop), collectionChanged);
+                    }
+                }
+                if (valueAdded)
+                    item.PropertyChanged += new PropertyChangedEventHandler(observed_PropertyChanged);
+            }
+        }
+
+        void collectionChanged_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+           
+            {
+            switch (e.Action)
+            {
+                case NotifyCollectionChangedAction.Add:
+                    break;
+                case NotifyCollectionChangedAction.Move:
+                    break;
+                case NotifyCollectionChangedAction.Remove:
+                    break;
+                case NotifyCollectionChangedAction.Replace:
+                    break;
+                case NotifyCollectionChangedAction.Reset:
+                    break;
+                default:
+                    break;
+            }                      }
+        }
+
+
+
+
         [ContractInvariantMethod]
         private void ObjectInvariant()
         {
@@ -65,6 +135,7 @@ namespace Midgard.WPFUndoManager
             Contract.Invariant(Redo != null);
             Contract.Invariant(undoCommand != null);
             Contract.Invariant(redoCommand != null);
+            Contract.Invariant(colleciontsListento != null);
         }
 
 
@@ -88,9 +159,7 @@ namespace Midgard.WPFUndoManager
             redoCommand.RaiseCanExecuteChange();
             undoCommand.RaiseCanExecuteChange();
         }
-        #endregion
 
-        #region CommandUndo
         internal void RegisterCommandUsage(UndoCommand command, object parameter)
         {
             Contract.Requires(command != null);
@@ -123,50 +192,11 @@ namespace Midgard.WPFUndoManager
             undoStack.Push(new Tuple<UndoCommand, object>(editedCommand ?? command, parameter));
             undoCommand.RaiseCanExecuteChange();
         }
-        #endregion
-
-        #region Property
 
 
-        internal readonly object[] emptyArray = new object[0];
 
-        internal readonly Dictionary<Tuple<object, String>, object> oldValues;
-        internal readonly HashSet<Tuple<Object, String, object>> notTrackChanges;
 
-        /// <summary>
-        /// Creates an Instance of UndoManager
-        /// </summary>
-        /// <param name="toObserve">All Object's that shuld be Monitored.</param>
-        public UndoManager(params INotifyPropertyChanged[] toObserve)
-        {
-            Contract.Requires(toObserve != null);
-
-            undoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
-            undoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(undoStack);
-            redoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
-            redoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(redoStack);
-            undoCommand = new UndoC(this);
-            redoCommand = new RedoC(this);
-            notTrackChanges = new HashSet<Tuple<object, string, object>>();
-            oldValues = new Dictionary<Tuple<object, string>, object>();
-            foreach (var item in toObserve)
-            {
-                bool valueAdded = false;
-                foreach (var prop in item.GetType().GetProperties())
-                {
-                    //Damit der UndoMeschanissmus funktioniert, muss die Property sowohl lesbar als auch schreibbar sein.
-                    if (prop.CanRead && prop.CanWrite && prop.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length == 0)
-                    {
-                        oldValues[new Tuple<object, string>(item, prop.Name)] = prop.GetValue(item, emptyArray);
-                        valueAdded = true;
-                    }
-                }
-                if (valueAdded)
-                    item.PropertyChanged += new PropertyChangedEventHandler(item_PropertyChanged);
-            }
-        }
-
-        void item_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        void observed_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             Contract.Requires(sender != null);
             Contract.Requires(e.PropertyName != null);
@@ -196,7 +226,6 @@ namespace Midgard.WPFUndoManager
         }
 
 
-        #endregion
 
         private class UndoC : ICommand
         {
