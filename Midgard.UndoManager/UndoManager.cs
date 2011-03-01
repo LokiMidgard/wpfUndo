@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using System.Diagnostics.Contracts;
 using System.Collections.Specialized;
+using System.Diagnostics;
 
 namespace Midgard.WPFUndoManager
 {
@@ -57,7 +58,7 @@ namespace Midgard.WPFUndoManager
         internal readonly object[] emptyArray = new object[0];
 
         internal readonly Dictionary<Tuple<object, String>, object> oldValues;
-        internal readonly Dictionary<Tuple<object, PropertyInfo>, INotifyCollectionChanged> colleciontsListento;
+        internal readonly Dictionary<Tuple<object, String>, INotifyCollectionChanged> colleciontsListento;
         internal readonly HashSet<Tuple<Object, String, object>> notTrackChanges;
 
 
@@ -76,6 +77,7 @@ namespace Midgard.WPFUndoManager
             undoCommand = new UndoC(this);
             redoCommand = new RedoC(this);
             notTrackChanges = new HashSet<Tuple<object, string, object>>();
+            colleciontsListento = new Dictionary<Tuple<object, String>, INotifyCollectionChanged>();
             oldValues = new Dictionary<Tuple<object, string>, object>();
             foreach (var item in toObserve)
             {
@@ -91,8 +93,9 @@ namespace Midgard.WPFUndoManager
                     var collectionChanged = prop.GetValue(item, new object[0]) as INotifyCollectionChanged;
                     if (collectionChanged != null)
                     {
-                        collectionChanged.CollectionChanged += new NotifyCollectionChangedEventHandler(collectionChanged_CollectionChanged);
-                        this.colleciontsListento.Add(new Tuple<object, PropertyInfo>(item, prop), collectionChanged);
+                        collectionChanged.CollectionChanged += collectionChanged_CollectionChanged;
+
+                        this.colleciontsListento.Add(new Tuple<object, String>(item, prop.Name), collectionChanged);
                     }
                 }
                 if (valueAdded)
@@ -102,23 +105,67 @@ namespace Midgard.WPFUndoManager
 
         void collectionChanged_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-           
+            if (sender is IList<object>)
             {
-            switch (e.Action)
+                Debugger.Break();
+                switch (e.Action)
+                {
+                    case NotifyCollectionChangedAction.Add:
+                        break;
+                    case NotifyCollectionChangedAction.Move:
+                        break;
+                    case NotifyCollectionChangedAction.Remove:
+                        break;
+                    case NotifyCollectionChangedAction.Replace:
+                        break;
+                    case NotifyCollectionChangedAction.Reset:
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+
+        void observed_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            Contract.Requires(sender != null);
+            Contract.Requires(e.PropertyName != null);
+
+            var property = sender.GetType().GetProperty(e.PropertyName);
+            if (property.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length > 0)
+                return;
+            var tupel = new Tuple<object, string>(sender, e.PropertyName);
+
+            if (colleciontsListento.ContainsKey(tupel))
             {
-                case NotifyCollectionChangedAction.Add:
-                    break;
-                case NotifyCollectionChangedAction.Move:
-                    break;
-                case NotifyCollectionChangedAction.Remove:
-                    break;
-                case NotifyCollectionChangedAction.Replace:
-                    break;
-                case NotifyCollectionChangedAction.Reset:
-                    break;
-                default:
-                    break;
-            }                      }
+                colleciontsListento[tupel].CollectionChanged -= collectionChanged_CollectionChanged;
+            }
+            var collectionChanged = property.GetValue(sender, new object[0]) as INotifyCollectionChanged;
+            if (collectionChanged != null)
+            {
+                collectionChanged.CollectionChanged += collectionChanged_CollectionChanged;
+
+                this.colleciontsListento.Add(new Tuple<object, String>(sender, property.Name), collectionChanged);
+            }
+
+            if (oldValues.ContainsKey(tupel) && property.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length == 0)
+            {
+                var newValue = property.GetValue(sender, emptyArray);
+
+                var notChangedTuple = new Tuple<Object, String, object>(sender, e.PropertyName, newValue);
+                if (notTrackChanges.Contains(notChangedTuple))
+                {
+                    notTrackChanges.Remove(notChangedTuple);
+                    return;
+                }
+
+
+                var oldValue = oldValues[tupel];
+                oldValues[tupel] = newValue;
+
+                var undoCommand = new PropertyUndoCommand(this, sender, property, oldValue, newValue);
+                RegisterCommandUsage(undoCommand, null);
+            }
         }
 
 
@@ -195,35 +242,6 @@ namespace Midgard.WPFUndoManager
 
 
 
-
-        void observed_PropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            Contract.Requires(sender != null);
-            Contract.Requires(e.PropertyName != null);
-
-            var property = sender.GetType().GetProperty(e.PropertyName);
-            if (property.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length > 0)
-                return;
-            var tupel = new Tuple<object, string>(sender, e.PropertyName);
-            if (oldValues.ContainsKey(tupel) && property.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length == 0)
-            {
-                var newValue = property.GetValue(sender, emptyArray);
-
-                var notChangedTuple = new Tuple<Object, String, object>(sender, e.PropertyName, newValue);
-                if (notTrackChanges.Contains(notChangedTuple))
-                {
-                    notTrackChanges.Remove(notChangedTuple);
-                    return;
-                }
-
-
-                var oldValue = oldValues[tupel];
-                oldValues[tupel] = newValue;
-
-                var undoCommand = new PropertyUndoCommand(this, sender, property, oldValue, newValue);
-                RegisterCommandUsage(undoCommand, null);
-            }
-        }
 
 
 

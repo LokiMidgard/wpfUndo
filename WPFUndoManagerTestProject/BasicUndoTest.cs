@@ -3,6 +3,7 @@ using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Threading;
 
 namespace WPFUndoManagerTestProject
 {
@@ -101,16 +102,16 @@ namespace WPFUndoManagerTestProject
         [TestMethod]
         public void PropertyUndo()
         {
-            var oldFirstName= ViewModel.FirstName;
+            var oldFirstName = ViewModel.FirstName;
             var oldLastName = ViewModel.SurName;
-            var newFirstName="My new First Name";
+            var newFirstName = "My new First Name";
             ViewModel.FirstName = newFirstName;
-            Assert.AreEqual(oldLastName, ViewModel.SurName,"Surname darf nciht geändert sein.");
-            Assert.AreEqual(newFirstName, ViewModel.FirstName,"FirstName muss den Neuen wert haben");
+            Assert.AreEqual(oldLastName, ViewModel.SurName, "Surname darf nciht geändert sein.");
+            Assert.AreEqual(newFirstName, ViewModel.FirstName, "FirstName muss den Neuen wert haben");
 
             ViewModel.UndoManager.Undo.Execute(null);
-            Assert.AreEqual(oldLastName, ViewModel.SurName,"Surname darf nicht geändert sein.");
-            Assert.AreEqual(oldFirstName, ViewModel.FirstName,"Firstname muss wieder den Anfangswert haben.");
+            Assert.AreEqual(oldLastName, ViewModel.SurName, "Surname darf nicht geändert sein.");
+            Assert.AreEqual(oldFirstName, ViewModel.FirstName, "Firstname muss wieder den Anfangswert haben.");
         }
 
         [TestMethod]
@@ -129,6 +130,17 @@ namespace WPFUndoManagerTestProject
             Assert.AreEqual(firstFirstName, ViewModel.FirstName);
             ViewModel.UndoManager.Redo.Execute(null);
             Assert.AreEqual(seccondFirstName, ViewModel.FirstName);
+        }
+
+        [TestMethod]
+        public void ChangeCollectionTest()
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                ViewModel.StringCollection.Add(i.ToString());
+                Assert.AreEqual(i + 1, ViewModel.StringCollection.Count);
+            }
+
         }
     }
 }
