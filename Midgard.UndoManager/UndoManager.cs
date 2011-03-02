@@ -55,13 +55,13 @@ namespace Midgard.WPFUndoManager
         private readonly ReadOnlyObservableCollection<Tuple<UndoCommand, object>> redoReadonly;
         private readonly UndoC undoCommand;
         private readonly RedoC redoCommand;
+        private readonly ISet<BlockChanges> blockChangesSet;
 
         internal readonly object[] emptyArray = new object[0];
 
         internal readonly Dictionary<Tuple<object, String>, object> oldValues;
         internal readonly Dictionary<Tuple<object, String>, INotifyCollectionChanged> colleciontsListento;
-        internal readonly HashSet<Tuple<Object, String, object>> notTrackChanges;
-
+   
 
         /// <summary>
         /// Creates an Instance of UndoManager
@@ -75,9 +75,9 @@ namespace Midgard.WPFUndoManager
             undoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(undoStack);
             redoStack = new ObservableCollection<Tuple<UndoCommand, object>>();
             redoReadonly = new ReadOnlyObservableCollection<Tuple<UndoCommand, object>>(redoStack);
+            blockChangesSet = new HashSet<BlockChanges>();
             undoCommand = new UndoC(this);
             redoCommand = new RedoC(this);
-            notTrackChanges = new HashSet<Tuple<object, string, object>>();
             colleciontsListento = new Dictionary<Tuple<object, String>, INotifyCollectionChanged>();
             oldValues = new Dictionary<Tuple<object, string>, object>();
             foreach (var item in toObserve)
@@ -118,87 +118,138 @@ namespace Midgard.WPFUndoManager
 
         void collectionChanged_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            if (IsList(sender))
-            {
-                var indexer = sender.GetType().GetProperty("Item");
-                var insert = sender.GetType().GetMethod("Insert");
-                var removeAt = sender.GetType().GetMethod("RemoveAt");
-                switch (e.Action)
+            
+                if (IsList(sender))
                 {
-                    case NotifyCollectionChangedAction.Add:
-                        var commandAdd = new UndoCommand(this, param =>
-                        {
-                            for (int i = e.NewItems.Count - 1; i >= 0; i--)
+                    var indexer = sender.GetType().GetProperty("Item");
+                    var insert = sender.GetType().GetMethod("Insert");
+                    var removeAt = sender.GetType().GetMethod("RemoveAt");
+                    switch (e.Action)
+                    {
+
+                        case NotifyCollectionChangedAction.Add:
+                            var commandAdd = new UndoCommand(this, param =>
                             {
-                                insert.Invoke(sender, new object[] { e.NewStartingIndex, e.NewItems[i] });
-                            }
-                        }
-                        , param =>
-                        {
-                            for (int i = 0; i < e.NewItems.Count; i++)
-                            {
-                                Debug.Assert(indexer.GetValue(sender, new object[] { e.NewStartingIndex }) == e.NewItems[i]);
-                                removeAt.Invoke(sender, new Object[] { e.NewStartingIndex });
-                            }
-                        });
-                        RegisterCommandUsage(commandAdd, null);
-                        break;
-                    case NotifyCollectionChangedAction.Move:
-                        //TODO
-                        break;
-                    case NotifyCollectionChangedAction.Remove:
-                        var commandRemove = new UndoCommand(this, param =>
-                        {
-                            for (int i = 0; i < e.OldItems.Count; i++)
-                            {
-                                Debug.Assert(indexer.GetValue(sender, new object[] { e.OldStartingIndex }) == e.OldItems[i]);
-                                removeAt.Invoke(sender, new Object[] { e.OldStartingIndex });
-                            }
-                        }
-                        , param =>
-                        {
-                            for (int i = e.OldItems.Count - 1; i >= 0; i--)
-                            {
-                                insert.Invoke(sender, new object[] { e.OldStartingIndex, e.OldItems[i] });
-                            }
-                        }
-                        );
-                        RegisterCommandUsage(commandRemove, null);
-                        break;
-                    case NotifyCollectionChangedAction.Replace:
-                        var commandReplace = new UndoCommand(this, param =>
-                            {
-                                for (int i = e.NewItems.Count - 1; i >= 0; i--)
+                                using (this.SuspendRegisteringChanges())
                                 {
-                                    indexer.SetValue(sender, e.NewItems[i], new object[] { i + e.NewStartingIndex });
+                                    for (int i = e.NewItems.Count - 1; i >= 0; i--)
+                                    {
+                                        insert.Invoke(sender, new object[] { e.NewStartingIndex, e.NewItems[i] });
+                                    }
                                 }
                             }
                             , param =>
                             {
-                                for (int i = 0; i < e.NewItems.Count; i++)
+                                using (this.SuspendRegisteringChanges())
                                 {
-                                    indexer.SetValue(sender, e.OldItems[i], new object[] { i + e.NewStartingIndex });
+                                    for (int i = 0; i < e.NewItems.Count; i++)
+                                    {
+                                        Debug.Assert(indexer.GetValue(sender, new object[] { e.NewStartingIndex }) == e.NewItems[i]);
+                                        removeAt.Invoke(sender, new Object[] { e.NewStartingIndex });
+                                    }
                                 }
                             });
-                        RegisterCommandUsage(commandReplace, null);
-                        break;
-                    case NotifyCollectionChangedAction.Reset:
-                        //TODO save changelog to be able to rekonstrukt Reset.
-                        ClearUndoHistory();
-                        break;
-                    default:
-                        Debug.Assert(true, "No default shuld exist");
-                        break;
+                            RegisterCommandUsage(commandAdd, null);
+                            break;
+                        case NotifyCollectionChangedAction.Move:
+                            var commandMove = new UndoCommand(this, param =>
+                            {
+                                using (this.SuspendRegisteringChanges())
+                                {
+                                    for (int i = 0; i < e.OldItems.Count; i++)
+                                    {
+                                        Debug.Assert(indexer.GetValue(sender, new object[] { e.OldStartingIndex }) == e.OldItems[i]);
+                                        removeAt.Invoke(sender, new Object[] { e.OldStartingIndex });
+                                    }
+                                    for (int i = e.NewItems.Count - 1; i >= 0; i--)
+                                    {
+                                        insert.Invoke(sender, new object[] { e.NewStartingIndex, e.NewItems[i] });
+                                    }
+                                }
+                            }
+                            , param =>
+                            {
+                                using (this.SuspendRegisteringChanges())
+                                {
+                                    for (int i = 0; i < e.NewItems.Count; i++)
+                                    {
+                                        Debug.Assert(indexer.GetValue(sender, new object[] { e.NewStartingIndex }) == e.NewItems[i]);
+                                        removeAt.Invoke(sender, new Object[] { e.NewStartingIndex });
+                                    }
+                                    for (int i = e.NewItems.Count - 1; i >= 0; i--)
+                                    {
+                                        insert.Invoke(sender, new object[] { e.OldStartingIndex, e.OldItems[i] });
+                                    }
+                                }
+                            }
+                            );
+                            RegisterCommandUsage(commandMove, null);
+                            break;
+                        case NotifyCollectionChangedAction.Remove:
+                            var commandRemove = new UndoCommand(this, param =>
+                            {
+                                using (this.SuspendRegisteringChanges())
+                                {
+                                    for (int i = 0; i < e.OldItems.Count; i++)
+                                    {
+                                        Debug.Assert(indexer.GetValue(sender, new object[] { e.OldStartingIndex }) == e.OldItems[i]);
+                                        removeAt.Invoke(sender, new Object[] { e.OldStartingIndex });
+                                    }
+                                }
+                            }
+                            , param =>
+                            {
+                                using (this.SuspendRegisteringChanges())
+                                {
+                                    for (int i = e.OldItems.Count - 1; i >= 0; i--)
+                                    {
+                                        insert.Invoke(sender, new object[] { e.OldStartingIndex, e.OldItems[i] });
+                                    }
+                                }
+                            }
+                            );
+                            RegisterCommandUsage(commandRemove, null);
+                            break;
+                        case NotifyCollectionChangedAction.Replace:
+                            var commandReplace = new UndoCommand(this, param =>
+                                {
+                                    using (this.SuspendRegisteringChanges())
+                                    {
+                                        for (int i = e.NewItems.Count - 1; i >= 0; i--)
+                                        {
+                                            indexer.SetValue(sender, e.NewItems[i], new object[] { i + e.NewStartingIndex });
+                                        }
+                                    }
+                                }
+                                , param =>
+                                {
+                                    using (this.SuspendRegisteringChanges())
+                                    {
+                                        for (int i = 0; i < e.NewItems.Count; i++)
+                                        {
+                                            indexer.SetValue(sender, e.OldItems[i], new object[] { i + e.NewStartingIndex });
+                                        }
+                                    }
+                                });
+                            RegisterCommandUsage(commandReplace, null);
+                            break;
+                        case NotifyCollectionChangedAction.Reset:
+                            //TODO save changelog to be able to rekonstrukt Reset.
+                            ClearUndoHistory();
+                            break;
+                        default:
+                            Debug.Assert(true, "No default shuld exist");
+                            break;
+                    }
                 }
-            }
-            else if (IsCollection(sender))
-            {
+                else if (IsCollection(sender))
+                {
 
-            }
-            else
-            {
-                Debug.Assert(true, "The Class that implements INotifyCollectionChanged does not Implement ICollection<T>, IList or IList<T>");
-            }
+                }
+                else
+                {
+                    Debug.Assert(true, "The Class that implements INotifyCollectionChanged does not Implement ICollection<T>, IList or IList<T>");
+                }
         }
 
         private static bool IsList(object sender)
@@ -274,14 +325,6 @@ namespace Midgard.WPFUndoManager
             {
                 var newValue = property.GetValue(sender, emptyArray);
 
-                var notChangedTuple = new Tuple<Object, String, object>(sender, e.PropertyName, newValue);
-                if (notTrackChanges.Contains(notChangedTuple))
-                {
-                    notTrackChanges.Remove(notChangedTuple);
-                    return;
-                }
-
-
                 var oldValue = oldValues[tupel];
                 oldValues[tupel] = newValue;
 
@@ -290,7 +333,16 @@ namespace Midgard.WPFUndoManager
             }
         }
 
-
+        /// <summary>
+        /// Block the registration of all changes untill the IDisposable is disposed.
+        /// </summary>
+        /// <returns>The Disposable to dispose.</returns>
+        public IDisposable SuspendRegisteringChanges()
+        {
+            var blocker = new BlockChanges((sender) => blockChangesSet.Remove(sender));
+            blockChangesSet.Add(blocker);
+            return blocker;
+        }
 
 
         [ContractInvariantMethod]
@@ -305,6 +357,7 @@ namespace Midgard.WPFUndoManager
             Contract.Invariant(undoCommand != null);
             Contract.Invariant(redoCommand != null);
             Contract.Invariant(colleciontsListento != null);
+            Contract.Invariant(blockChangesSet != null);
         }
 
 
@@ -332,6 +385,9 @@ namespace Midgard.WPFUndoManager
         internal void RegisterCommandUsage(UndoCommand command, object parameter)
         {
             Contract.Requires(command != null);
+
+            if (blockChangesSet.Count != 0)
+                return;
 
             redoStack.Clear();
             redoCommand.RaiseCanExecuteChange();
@@ -365,6 +421,23 @@ namespace Midgard.WPFUndoManager
 
 
 
+        public class BlockChanges : IDisposable
+        {
+            Action<BlockChanges> onDispose;
+            public BlockChanges(Action<BlockChanges> onDispose)
+            {
+                IsDisposed = false;
+                this.onDispose = onDispose;
+            }
+
+            public bool IsDisposed { get; private set; }
+
+            public void Dispose()
+            {
+                IsDisposed = true;
+                onDispose(this);
+            }
+        }
 
 
         private class UndoC : ICommand
