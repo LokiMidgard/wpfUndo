@@ -168,5 +168,29 @@ namespace WPFUndoManagerTestProject
             Assert.AreEqual(toAdd.Length , col.Count);
             Assert.AreEqual(toAdd[5], col[5]);
         }
+
+        [TestMethod]
+        public void CollectionMoveTest()
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                ViewModel.StringCollection.Add(i.ToString());
+            }
+            ViewModel.StringCollection.Move(3, 7);
+
+            Assert.AreEqual(4.ToString(), ViewModel.StringCollection[3]);
+            Assert.AreEqual(3.ToString(), ViewModel.StringCollection[7]);
+
+            ViewModel.UndoManager.Undo.Execute(null);
+
+            Assert.AreEqual(3.ToString(), ViewModel.StringCollection[3]);
+            Assert.AreEqual(7.ToString(), ViewModel.StringCollection[7]);
+
+            ViewModel.UndoManager.Redo.Execute(null);
+
+            Assert.AreEqual(4.ToString(), ViewModel.StringCollection[3]);
+            Assert.AreEqual(3.ToString(), ViewModel.StringCollection[7]);
+
+        }
     }
 }
