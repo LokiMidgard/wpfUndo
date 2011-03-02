@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Reflection;
+using System.Diagnostics.Contracts;
 
 namespace Midgard.WPFUndoManager
 {
@@ -12,6 +13,8 @@ namespace Midgard.WPFUndoManager
         public PropertyUndoCommand(UndoManager manager, Object sender, PropertyInfo prop, object oldValue, object newValue)
             : base(manager, obj => ChangePropertyValue(manager, prop, sender, newValue), obj => ChangePropertyValue(manager, prop, sender, oldValue))
         {
+            Contract.Requires(manager != null);
+
             this.Sender = sender;
             this.NewValue = newValue;
             this.OldValue = oldValue;
