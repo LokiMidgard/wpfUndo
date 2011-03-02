@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Diagnostics.Contracts;
 using System.Collections.Specialized;
 using System.Diagnostics;
+using System.Collections;
 
 namespace Midgard.WPFUndoManager
 {
@@ -84,18 +85,21 @@ namespace Midgard.WPFUndoManager
                 bool valueAdded = false;
                 foreach (var prop in item.GetType().GetProperties())
                 {
-                    //Damit der UndoMeschanissmus funktioniert, muss die Property sowohl lesbar als auch schreibbar sein.
-                    if (prop.CanRead && prop.CanWrite && prop.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length == 0)
+                    if (prop.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length == 0)
                     {
-                        oldValues[new Tuple<object, string>(item, prop.Name)] = prop.GetValue(item, emptyArray);
-                        valueAdded = true;
-                    }
-                    var collectionChanged = prop.GetValue(item, new object[0]) as INotifyCollectionChanged;
-                    if (collectionChanged != null)
-                    {
-                        collectionChanged.CollectionChanged += collectionChanged_CollectionChanged;
+                        //Damit der UndoMeschanissmus funktioniert, muss die Property sowohl lesbar als auch schreibbar sein.
+                        if (prop.CanRead && prop.CanWrite)
+                        {
+                            oldValues[new Tuple<object, string>(item, prop.Name)] = prop.GetValue(item, emptyArray);
+                            valueAdded = true;
+                        }
+                        var collectionChanged = prop.GetValue(item, new object[0]) as INotifyCollectionChanged;
+                        if (collectionChanged != null)
+                        {
+                            collectionChanged.CollectionChanged += collectionChanged_CollectionChanged;
 
-                        this.colleciontsListento.Add(new Tuple<object, String>(item, prop.Name), collectionChanged);
+                            this.colleciontsListento.Add(new Tuple<object, String>(item, prop.Name), collectionChanged);
+                        }
                     }
                 }
                 if (valueAdded)
@@ -105,25 +109,119 @@ namespace Midgard.WPFUndoManager
 
         void collectionChanged_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            if (sender is IList<object>)
+            if (IsList(sender))
             {
-                Debugger.Break();
+                var indexer = sender.GetType().GetProperty("Item");
+                var insert = sender.GetType().GetMethod("Insert");
+                var removeAt = sender.GetType().GetMethod("RemoveAt");
                 switch (e.Action)
                 {
                     case NotifyCollectionChangedAction.Add:
+                        var commandAdd = new UndoCommand(this, param =>
+                        {
+                            for (int i = e.NewItems.Count - 1; i >= 0; i--)
+                            {
+                                insert.Invoke(sender, new object[] { e.NewStartingIndex, e.NewItems[i] });
+                            }
+                        }
+                        , param =>
+                        {
+                            for (int i = 0; i < e.NewItems.Count; i++)
+                            {
+                                Debug.Assert(indexer.GetValue(sender, new object[] { e.NewStartingIndex }) == e.NewItems[i]);
+                                removeAt.Invoke(sender, new Object[] { e.NewStartingIndex });
+                            }
+                        });
+                        RegisterCommandUsage(commandAdd, null);
                         break;
                     case NotifyCollectionChangedAction.Move:
+                        //TODO
                         break;
                     case NotifyCollectionChangedAction.Remove:
+                        var commandRemove = new UndoCommand(this, param =>
+                        {
+                            for (int i = 0; i < e.OldItems.Count; i++)
+                            {
+                                Debug.Assert(indexer.GetValue(sender, new object[] { e.OldStartingIndex}) == e.OldItems[i]);
+                                removeAt.Invoke(sender, new Object[] { e.OldStartingIndex});
+                            }
+                        }
+                        , param =>
+                        {
+                            for (int i = e.OldItems.Count - 1; i >= 0; i--)
+                            {
+                                insert.Invoke(sender, new object[] { e.OldStartingIndex, e.OldItems[i] });
+                            }
+                        }
+                        );
+                        RegisterCommandUsage(commandRemove, null);
                         break;
                     case NotifyCollectionChangedAction.Replace:
+                        //TODO
                         break;
                     case NotifyCollectionChangedAction.Reset:
+                        //TODO
                         break;
                     default:
+                        Debug.Assert(true, "No default shuld exist");
                         break;
                 }
             }
+            else if (IsCollection(sender))
+            {
+
+            }
+            else
+            {
+                Debug.Assert(true, "The Class that implements INotifyCollectionChanged does not Implement ICollection<T>, IList or IList<T>");
+            }
+        }
+
+        private static bool IsList(object sender)
+        {
+            if (sender is IList)
+                return true;
+            Queue<Type> queue = new Queue<Type>(sender.GetType().GetInterfaces());
+            while (queue.Count != 0)
+            {
+                var inter = queue.Dequeue();
+                foreach (var item in inter.GetInterfaces())
+                    queue.Enqueue(item);
+
+                if (!inter.IsGenericType)
+                    continue;
+                Contract.Assume(typeof(IList<object>).IsGenericType);
+                var listGenType = typeof(IList<object>).GetGenericTypeDefinition();
+
+                var gentType = inter.GetGenericTypeDefinition();
+                if (listGenType == gentType)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        private static bool IsCollection(object sender)
+        {
+            Queue<Type> queue = new Queue<Type>(sender.GetType().GetInterfaces());
+            while (queue.Count != 0)
+            {
+                var inter = queue.Dequeue();
+                foreach (var item in inter.GetInterfaces())
+                    queue.Enqueue(item);
+
+                if (!inter.IsGenericType)
+                    continue;
+                Contract.Assume(typeof(ICollection<object>).IsGenericType);
+                var listGenType = typeof(ICollection<object>).GetGenericTypeDefinition();
+
+                var gentType = inter.GetGenericTypeDefinition();
+                if (listGenType == gentType)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         void observed_PropertyChanged(object sender, PropertyChangedEventArgs e)
