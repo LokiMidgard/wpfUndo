@@ -107,6 +107,15 @@ namespace Midgard.WPFUndoManager
             }
         }
 
+        /// <summary>
+        /// Delets the History off all Commands managed by this UndoManager.
+        /// </summary>
+        public void ClearUndoHistory()
+        {
+            redoStack.Clear();
+            undoStack.Clear();
+        }
+
         void collectionChanged_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (IsList(sender))
@@ -142,8 +151,8 @@ namespace Midgard.WPFUndoManager
                         {
                             for (int i = 0; i < e.OldItems.Count; i++)
                             {
-                                Debug.Assert(indexer.GetValue(sender, new object[] { e.OldStartingIndex}) == e.OldItems[i]);
-                                removeAt.Invoke(sender, new Object[] { e.OldStartingIndex});
+                                Debug.Assert(indexer.GetValue(sender, new object[] { e.OldStartingIndex }) == e.OldItems[i]);
+                                removeAt.Invoke(sender, new Object[] { e.OldStartingIndex });
                             }
                         }
                         , param =>
@@ -157,10 +166,25 @@ namespace Midgard.WPFUndoManager
                         RegisterCommandUsage(commandRemove, null);
                         break;
                     case NotifyCollectionChangedAction.Replace:
-                        //TODO
+                        var commandReplace = new UndoCommand(this, param =>
+                            {
+                                for (int i = e.NewItems.Count - 1; i >= 0; i--)
+                                {
+                                    indexer.SetValue(sender, e.NewItems[i], new object[] { i + e.NewStartingIndex });
+                                }
+                            }
+                            , param =>
+                            {
+                                for (int i = 0; i < e.NewItems.Count; i++)
+                                {
+                                    indexer.SetValue(sender, e.OldItems[i], new object[] { i + e.NewStartingIndex });
+                                }
+                            });
+                        RegisterCommandUsage(commandReplace, null);
                         break;
                     case NotifyCollectionChangedAction.Reset:
-                        //TODO
+                        //TODO save changelog to be able to rekonstrukt Reset.
+                        ClearUndoHistory();
                         break;
                     default:
                         Debug.Assert(true, "No default shuld exist");
