@@ -133,6 +133,68 @@ namespace Midgard.WPFUndoManager
             }
         }
 
+
+        void observed_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            Contract.Requires(sender != null);
+            Contract.Requires(e.PropertyName != null);
+
+            var property = sender.GetType().GetProperty(e.PropertyName);
+            if (property.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length > 0)
+                return;
+            var tupel = new Tuple<object, string>(sender, e.PropertyName);
+
+            if (colleciontsListento.ContainsKey(tupel))
+            {
+                colleciontsListento[tupel].CollectionChanged -= collectionChanged_CollectionChanged;
+            }
+            var collectionChanged = property.GetValue(sender, new object[0]) as INotifyCollectionChanged;
+            if (collectionChanged != null)
+            {
+                collectionChanged.CollectionChanged += collectionChanged_CollectionChanged;
+
+                this.colleciontsListento.Add(new Tuple<object, String>(sender, property.Name), collectionChanged);
+            }
+
+            if (oldValues.ContainsKey(tupel) && property.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length == 0)
+            {
+                var newValue = property.GetValue(sender, emptyArray);
+
+                var oldValue = oldValues[tupel];
+                oldValues[tupel] = newValue;
+
+                var undoCommand = new PropertyUndoCommand(this, sender, property, oldValue, newValue);
+                RegisterCommandUsage(undoCommand, null);
+            }
+        }
+
+        /// <summary>
+        /// Block the registration of all changes untill the IDisposable is disposed.
+        /// </summary>
+        /// <returns>The Disposable to dispose.</returns>
+        public IDisposable SuspendRegisteringChanges()
+        {
+            var blocker = new BlockChanges((sender) => blockChangesSet.Remove(sender));
+            blockChangesSet.Add(blocker);
+            return blocker;
+        }
+
+
+        [ContractInvariantMethod]
+        private void ObjectInvariant()
+        {
+            Contract.Invariant(undoReadonly != null);
+            Contract.Invariant(redoReadonly != null);
+            Contract.Invariant(undoStack != null);
+            Contract.Invariant(redoStack != null);
+            Contract.Invariant(Undo != null);
+            Contract.Invariant(Redo != null);
+            Contract.Invariant(undoCommand != null);
+            Contract.Invariant(redoCommand != null);
+            Contract.Invariant(colleciontsListento != null);
+            Contract.Invariant(blockChangesSet != null);
+        }
+
         private void RegisterICollectionChanges(object sender, NotifyCollectionChangedEventArgs e)
         {
             var add = sender.GetType().GetMethod("Add");
@@ -196,7 +258,7 @@ namespace Midgard.WPFUndoManager
                         {
                             foreach (var item in e.OldItems)
                             {
-                                remove.Invoke(sender, new object[] {item });
+                                remove.Invoke(sender, new object[] { item });
                             }
                             foreach (var item in e.NewItems)
                             {
@@ -380,6 +442,7 @@ namespace Midgard.WPFUndoManager
             }
             return false;
         }
+
         private static bool IsCollection(object sender)
         {
             Queue<Type> queue = new Queue<Type>(sender.GetType().GetInterfaces());
@@ -402,68 +465,6 @@ namespace Midgard.WPFUndoManager
             }
             return false;
         }
-
-        void observed_PropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            Contract.Requires(sender != null);
-            Contract.Requires(e.PropertyName != null);
-
-            var property = sender.GetType().GetProperty(e.PropertyName);
-            if (property.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length > 0)
-                return;
-            var tupel = new Tuple<object, string>(sender, e.PropertyName);
-
-            if (colleciontsListento.ContainsKey(tupel))
-            {
-                colleciontsListento[tupel].CollectionChanged -= collectionChanged_CollectionChanged;
-            }
-            var collectionChanged = property.GetValue(sender, new object[0]) as INotifyCollectionChanged;
-            if (collectionChanged != null)
-            {
-                collectionChanged.CollectionChanged += collectionChanged_CollectionChanged;
-
-                this.colleciontsListento.Add(new Tuple<object, String>(sender, property.Name), collectionChanged);
-            }
-
-            if (oldValues.ContainsKey(tupel) && property.GetCustomAttributes(typeof(IgnorUndoManagerAttribute), true).Length == 0)
-            {
-                var newValue = property.GetValue(sender, emptyArray);
-
-                var oldValue = oldValues[tupel];
-                oldValues[tupel] = newValue;
-
-                var undoCommand = new PropertyUndoCommand(this, sender, property, oldValue, newValue);
-                RegisterCommandUsage(undoCommand, null);
-            }
-        }
-
-        /// <summary>
-        /// Block the registration of all changes untill the IDisposable is disposed.
-        /// </summary>
-        /// <returns>The Disposable to dispose.</returns>
-        public IDisposable SuspendRegisteringChanges()
-        {
-            var blocker = new BlockChanges((sender) => blockChangesSet.Remove(sender));
-            blockChangesSet.Add(blocker);
-            return blocker;
-        }
-
-
-        [ContractInvariantMethod]
-        private void ObjectInvariant()
-        {
-            Contract.Invariant(undoReadonly != null);
-            Contract.Invariant(redoReadonly != null);
-            Contract.Invariant(undoStack != null);
-            Contract.Invariant(redoStack != null);
-            Contract.Invariant(Undo != null);
-            Contract.Invariant(Redo != null);
-            Contract.Invariant(undoCommand != null);
-            Contract.Invariant(redoCommand != null);
-            Contract.Invariant(colleciontsListento != null);
-            Contract.Invariant(blockChangesSet != null);
-        }
-
 
 
         private void UndoFunc()
