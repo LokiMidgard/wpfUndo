@@ -135,12 +135,38 @@ namespace WPFUndoManagerTestProject
         [TestMethod]
         public void ChangeCollectionTest()
         {
-            for (int i = 0; i < 10; i++)
+            String[] toAdd = new string[10];
+            for (int i = 0; i < toAdd.Length; i++)
             {
-                ViewModel.StringCollection.Add(i.ToString());
-                Assert.AreEqual(i + 1, ViewModel.StringCollection.Count);
+                toAdd[i] = i.ToString();
             }
 
+            var col= ViewModel.StringCollection;
+            Assert.AreEqual(0,col.Count);
+            col.Add(toAdd[0]);
+            Assert.AreEqual(1, col.Count);
+            Assert.AreEqual(toAdd[0], col[0]);
+            ViewModel.UndoManager.Undo.Execute(null);
+            Assert.AreEqual(0, col.Count);
+            ViewModel.UndoManager.Redo.Execute(null);
+            Assert.AreEqual(1, col.Count);
+            Assert.AreEqual(toAdd[0], col[0]);
+
+            for (int i = 1; i < toAdd.Length; i++)
+            {
+                col.Add(toAdd[i]);
+            }
+
+            col.RemoveAt(5);
+
+            Assert.AreEqual(toAdd.Length - 1, col.Count);
+            Assert.AreEqual(toAdd[6], col[5]);
+
+            ViewModel.UndoManager.Undo.Execute(null);
+
+
+            Assert.AreEqual(toAdd.Length , col.Count);
+            Assert.AreEqual(toAdd[5], col[5]);
         }
     }
 }
