@@ -3,6 +3,7 @@ using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Threading;
 
 namespace WPFUndoManagerTestProject
 {
@@ -101,16 +102,16 @@ namespace WPFUndoManagerTestProject
         [TestMethod]
         public void PropertyUndo()
         {
-            var oldFirstName= ViewModel.FirstName;
+            var oldFirstName = ViewModel.FirstName;
             var oldLastName = ViewModel.SurName;
-            var newFirstName="My new First Name";
+            var newFirstName = "My new First Name";
             ViewModel.FirstName = newFirstName;
-            Assert.AreEqual(oldLastName, ViewModel.SurName,"Surname darf nciht geändert sein.");
-            Assert.AreEqual(newFirstName, ViewModel.FirstName,"FirstName muss den Neuen wert haben");
+            Assert.AreEqual(oldLastName, ViewModel.SurName, "Surname darf nciht geändert sein.");
+            Assert.AreEqual(newFirstName, ViewModel.FirstName, "FirstName muss den Neuen wert haben");
 
             ViewModel.UndoManager.Undo.Execute(null);
-            Assert.AreEqual(oldLastName, ViewModel.SurName,"Surname darf nicht geändert sein.");
-            Assert.AreEqual(oldFirstName, ViewModel.FirstName,"Firstname muss wieder den Anfangswert haben.");
+            Assert.AreEqual(oldLastName, ViewModel.SurName, "Surname darf nicht geändert sein.");
+            Assert.AreEqual(oldFirstName, ViewModel.FirstName, "Firstname muss wieder den Anfangswert haben.");
         }
 
         [TestMethod]
@@ -129,6 +130,92 @@ namespace WPFUndoManagerTestProject
             Assert.AreEqual(firstFirstName, ViewModel.FirstName);
             ViewModel.UndoManager.Redo.Execute(null);
             Assert.AreEqual(seccondFirstName, ViewModel.FirstName);
+        }
+
+        [TestMethod]
+        public void ChangeCollectionTest()
+        {
+            String[] toAdd = new string[10];
+            for (int i = 0; i < toAdd.Length; i++)
+            {
+                toAdd[i] = i.ToString();
+            }
+
+            var col= ViewModel.StringList;
+            Assert.AreEqual(0,col.Count);
+            col.Add(toAdd[0]);
+            Assert.AreEqual(1, col.Count);
+            Assert.AreEqual(toAdd[0], col[0]);
+            ViewModel.UndoManager.Undo.Execute(null);
+            Assert.AreEqual(0, col.Count);
+            ViewModel.UndoManager.Redo.Execute(null);
+            Assert.AreEqual(1, col.Count);
+            Assert.AreEqual(toAdd[0], col[0]);
+
+            for (int i = 1; i < toAdd.Length; i++)
+            {
+                col.Add(toAdd[i]);
+            }
+
+            col.RemoveAt(5);
+
+            Assert.AreEqual(toAdd.Length - 1, col.Count);
+            Assert.AreEqual(toAdd[6], col[5]);
+
+            ViewModel.UndoManager.Undo.Execute(null);
+
+
+            Assert.AreEqual(toAdd.Length , col.Count);
+            Assert.AreEqual(toAdd[5], col[5]);
+        }
+
+        [TestMethod]
+        public void CollectionMoveTest()
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                ViewModel.StringList.Add(i.ToString());
+            }
+            ViewModel.StringList.Move(3, 7);
+
+            Assert.AreEqual(4.ToString(), ViewModel.StringList[3]);
+            Assert.AreEqual(3.ToString(), ViewModel.StringList[7]);
+
+            ViewModel.UndoManager.Undo.Execute(null);
+
+            Assert.AreEqual(3.ToString(), ViewModel.StringList[3]);
+            Assert.AreEqual(7.ToString(), ViewModel.StringList[7]);
+
+            ViewModel.UndoManager.Redo.Execute(null);
+
+            Assert.AreEqual(4.ToString(), ViewModel.StringList[3]);
+            Assert.AreEqual(3.ToString(), ViewModel.StringList[7]);
+
+        }
+
+        [TestMethod]
+        public void CollectionReplace()
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                ViewModel.StringList.Add(i.ToString());
+            }
+
+            Assert.AreEqual(3.ToString(), ViewModel.StringList[3]);
+            
+            var replacment = "replaced";
+            ViewModel.StringList[3]=replacment;
+
+            Assert.AreEqual(replacment, ViewModel.StringList[3]);
+
+            ViewModel.UndoManager.Undo.Execute(null);
+
+            Assert.AreEqual(3.ToString(), ViewModel.StringList[3]);
+
+            ViewModel.UndoManager.Redo.Execute(null);
+
+            Assert.AreEqual(replacment, ViewModel.StringList[3]);
+
         }
     }
 }

@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using Midgard.WPFUndoManager;
+using System.Collections.ObjectModel;
 
 namespace WPFUndoManagerTestProject
 {
@@ -13,7 +14,14 @@ namespace WPFUndoManagerTestProject
     {
         public BasicTestViewModel()
         {
+            StringList = new ObservableCollection<string>();
+            this.NotifyPropertyChanged("StringCollection");
             UndoManager = new UndoManager(this);
+        }
+
+        void StringCollection_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            Console.WriteLine("Funzt in Viewmodel");
         }
 
         public UndoManager UndoManager { get; private set; }
@@ -31,6 +39,8 @@ namespace WPFUndoManagerTestProject
             get { return surName; }
             set { surName = value; this.NotifyPropertyChanged("SurName"); }
         }
+
+        public ObservableCollection<String> StringList { get; private set; }
 
         public ICommand SetText
         {

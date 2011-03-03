@@ -14,19 +14,16 @@ namespace WpfTestApplication
 	{
 		public View1Model()
 		{
-            Name = "muh";
-
             UndoManager = new UndoManager(this);
             FirstList = new ObservableCollection<string>(new String[] {"1","2"});
             SeccondList = new ObservableCollection<string>(new String[] { "a", "b" });
 
 
             Action<object> fromOneToTwo = obj => { FirstList.Remove(obj as String); SeccondList.Add(obj as string); };
-            Action<object> fromTwpToOne = obj => { SeccondList.Remove(obj as String); FirstList.Add(obj as string); };
+            Action<object> fromTwoToOne = obj => { SeccondList.Remove(obj as String); FirstList.Add(obj as string); };
 
-            FromFirstToSeccond = new UndoCommand(UndoManager, fromOneToTwo, fromTwpToOne, obj => FirstList.Contains(obj as string));    
-            FromSeccondToFirst = new UndoCommand(UndoManager, fromTwpToOne, fromOneToTwo, obj => SeccondList.Contains(obj as string));
-
+            FromFirstToSeccond = new UndoCommand(UndoManager, fromOneToTwo, fromTwoToOne, obj => FirstList.Contains(obj as string));    
+            FromSeccondToFirst = new UndoCommand(UndoManager, fromTwoToOne, fromOneToTwo, obj => SeccondList.Contains(obj as string));
         }
 
         public UndoManager UndoManager { get; private set; }
