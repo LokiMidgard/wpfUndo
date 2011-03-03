@@ -14,7 +14,7 @@ namespace WPFUndoManagerTestProject
     {
         public BasicTestViewModel()
         {
-            StringCollection = new ObservableCollection<string>();
+            StringList = new ObservableCollection<string>();
             this.NotifyPropertyChanged("StringCollection");
             UndoManager = new UndoManager(this);
         }
@@ -40,7 +40,7 @@ namespace WPFUndoManagerTestProject
             set { surName = value; this.NotifyPropertyChanged("SurName"); }
         }
 
-        public ObservableCollection<String> StringCollection { get; private set; }
+        public ObservableCollection<String> StringList { get; private set; }
 
         public ICommand SetText
         {
